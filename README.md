@@ -20,3 +20,23 @@ Respon disusun mengikuti protokol HTTP yang benar:
 But this is from my machine. You may need to edit the hello.html to write your own message.
 
 ![Commit 2 screen capture](/assets/images/commit2.png)
+
+## Commit 3 Reflection notes
+Pada Milestone 3, dilakukan penambahan validasi request untuk membedakan antara halaman utama dan halaman yang tidak ditemukan (404 Not Found), serta melakukan refactoring pada kode.
+
+### Cara Memisahkan Response:
+Alih-alih menggunakan `.collect()` untuk mengambil seluruh isi request, saya menggunakan `.next()` pada `buf_reader.lines()` untuk mengambil baris pertama saja (`request_line`). Baris ini berisi informasi metode HTTP dan path (misal: `GET / HTTP/1.1`). 
+
+Dengan struktur `if...else`, program mengecek isi `request_line`:
+- Jika isinya adalah request ke path `/`, maka program menetapkan status `200 OK` dan file `hello.html`.
+- Jika isinya selain itu (seperti `/bad`), maka program menetapkan status `404 NOT FOUND` dan file `404.html`.
+
+### Refactoring
+Refactoring diperlukan untuk menerapkan prinsip **DRY (Don't Repeat Yourself)**. Sebelum direfaktorisasi, blok kode untuk membaca file dan mengirim respons (seperti `fs::read_to_string` dan `stream.write_all`) harus ditulis berulang kali di dalam setiap kondisi `if` dan `else`.
+
+Beberapa keuntungan refactoring:
+1. **Kode lebih modular**: Kita hanya menentukan bagian yang berbeda (status line dan nama file) di dalam blok logika.
+2. **Maintenance lebih mudah**: Logika utama pengiriman respons hanya ada di satu tempat di akhir fungsi, sehingga jika ada perubahan protokol ke depannya, kita hanya perlu mengubah satu bagian saja.
+
+### Cuplikan Layar (Commit 3 - 404 Page):
+![Commit 3 screen capture](/assets/images/commit3.png)

@@ -60,3 +60,21 @@ Fenomena ini terjadi karena server yang kita bangun saat ini bersifat Single-Thr
 
 ### Kesimpulan
 Simulasi ini memberikan gambaran nyata mengapa multithreading atau penggunaan worker threads sangat krusial dalam pengembangan web server. Tanpa penanganan konkurensi, server tidak akan mampu menangani trafik tinggi karena satu proses yang memakan waktu lama akan membuat server terlihat "mati" bagi pengguna lain.
+
+## Commit 5 Reflection notes
+Pada milestone ini, server ditingkatkan dari single-threaded menjadi multithreaded menggunakan arsitektur ThreadPool. 
+
+Meskipun kita bisa saja membuat thread baru untuk setiap request yang masuk dengan `thread::spawn`, hal tersebut sangat berbahaya untuk production. Jika ada banyak request masuk secara bersamaan, server bisa kehabisan memori karena sistem operasi kewalahan membuat thread baru tanpa batas. ThreadPool menyelesaikan masalah ini dengan membatasi jumlah thread yang berjalan.
+
+ThreadPool mengelola sekumpulan Worker yang selalu bersiaga dan sebuah mekanisme pengiriman pesan menggunakan Channel (`mpsc` - multiple producer, single consumer).
+
+Berikut adalah alur kerjanya:
+1. **Pengiriman Tugas (Sender):** Ketika ada permintaan masuk, `ThreadPool::execute` akan membungkus tugas tersebut menjadi sebuah `Job` (sebuah closure atau fungsi yang akan dieksekusi) dan mengirimkannya melalui jalur Sender dari channel.
+2. **Pekerja Bersiaga (Worker):** Di dalam ThreadPool, terdapat kumpulan Worker. Setiap Worker memiliki thread sendiri yang berjalan dalam looping tanpa henti, menunggu datangnya `Job` dari jalur Receiver.
+3. **Membagi Receiver dengan Aman (Arc & Mutex):** Agar beberapa Worker bisa mendengarkan satu Receiver yang sama tanpa bertabrakan, kita menggunakan smart pointer `Arc<Mutex<Receiver<Job>>>`:
+   - **`Arc` (Atomic Reference Counted):** Memungkinkan Receiver untuk dimiliki oleh banyak Worker sekaligus.
+   - **`Mutex` (Mutual Exclusion):** Memastikan bahwa pada satu detik tertentu, hanya ada satu Worker yang bisa mengunci Receiver dan mengambil `Job`. Ini mencegah data race di mana dua Worker tidak sengaja mengambil tugas yang sama.
+
+### Hasil Akhir
+Dengan menggunakan ThreadPool, jika kita melakukan simulasi lambat (`/sleep`) seperti di Commit 4, tab browser lain yang mengakses rute normal (`/`) tidak akan lagi tertahan. Rute `/` akan langsung ditangani oleh *Worker* lain yang sedang menganggur, sementara satu Worker sibuk tertidur selama 10 detik. Server menjadi jauh lebih responsif dan aman.
+

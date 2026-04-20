@@ -6,11 +6,11 @@ Di sini digunakan `BufReader` untuk membaca data dari `TcpStream` secara efisien
 ## Commit 2 Reflection notes
 
 Pada tahap ini, fungsi `handle_connection` telah diperbarui untuk memberikan respon balik berupa file HTML yang sebenarnya (`hello.html`), bukan sekadar teks mentah.
-1.  **Pemisahan Response**
+1.  **Pemisahan Response**:
 Saya membagi response menjadi tiga bagian utama: `status_line` (status sukses 200 OK), `contents` (isi dari file HTML), dan `length` (panjang dari konten tersebut).
-2.  **Pembacaan File**
+2.  **Pembacaan File**:
 Menggunakan `fs::read_to_string("hello.html")` untuk mengambil seluruh isi file HTML. Penggunaan `.unwrap()` di sini berfungsi untuk menangani *error* jika file tidak ditemukan.
-3.  **Format HTTP Response**
+3.  **Format HTTP Response**:
 Respon disusun mengikuti protokol HTTP yang benar:
 * Header diawali dengan status line.
 * Diikuti dengan `Content-Length` agar browser tahu berapa banyak data yang harus dibaca.
@@ -40,3 +40,23 @@ Beberapa keuntungan refactoring:
 
 ### Cuplikan Layar (Commit 3 - 404 Page):
 ![Commit 3 screen capture](/assets/images/commit3.png)
+
+## Commit 4 Reflection notes
+
+Pada milestone ini, saya menambahkan rute `/sleep` yang mensimulasikan sebuah proses berat dengan memberikan jeda waktu selama 10 detik sebelum server memberikan respons.
+
+### Hasil Simulasi
+Ketika saya melakukan pengujian dengan membuka dua jendela browser:
+1. **Tab 1:** Mengakses `127.0.0.1:7878/sleep`
+2. **Tab 2:** Mengakses `127.0.0.1:7878/` (halaman utama) segera setelahnya.
+
+Hasilnya Tab kedua tidak langsung terbuka. Halaman utama ikut tertahan dan baru muncul setelah Tab pertama selesai diproses. Hal ini menunjukkan bahwa satu request yang lambat dapat menghentikan seluruh layanan server untuk pengguna lain.
+
+### Mengapa Hal Ini Terjadi?
+Fenomena ini terjadi karena server yang kita bangun saat ini bersifat Single-Threaded. Berikut adalah kronologi teknisnya:
+* **Blocking Call:** Saat fungsi `handle_connection` memanggil `thread::sleep`, thread utama program benar-benar berhenti bekerja selama 10 detik.
+* **Antrean Koneksi:** Karena hanya ada satu thread, server tidak bisa kembali ke loop `for` di fungsi `main` untuk menerima (*accept*) koneksi baru selama ia masih tertahan di dalam fungsi `handle_connection` milik user pertama.
+* **Sekuensial:** Server terpaksa memproses permintaan satu per satu secara berurutan (sekuensial). Jika permintaan nomor 1 butuh waktu lama, permintaan nomor 2 dan seterusnya harus mengantre di belakang.
+
+### Kesimpulan
+Simulasi ini memberikan gambaran nyata mengapa multithreading atau penggunaan worker threads sangat krusial dalam pengembangan web server. Tanpa penanganan konkurensi, server tidak akan mampu menangani trafik tinggi karena satu proses yang memakan waktu lama akan membuat server terlihat "mati" bagi pengguna lain.

@@ -78,3 +78,18 @@ Berikut adalah alur kerjanya:
 ### Hasil Akhir
 Dengan menggunakan ThreadPool, jika kita melakukan simulasi lambat (`/sleep`) seperti di Commit 4, tab browser lain yang mengakses rute normal (`/`) tidak akan lagi tertahan. Rute `/` akan langsung ditangani oleh *Worker* lain yang sedang menganggur, sementara satu Worker sibuk tertidur selama 10 detik. Server menjadi jauh lebih responsif dan aman.
 
+## Commit Bonus Reflection notes
+
+Pada bagian bonus ini, saya mengganti fungsi inisialisasi `ThreadPool::new` menjadi `ThreadPool::build`. 
+
+### Perbandingan `new` vs `build`
+1. **Pendekatan Fungsi `new` (Panic):**
+   Fungsi `new` sebelumnya menggunakan makro `assert!(size > 0);`. Pendekatan ini memiliki kelemahan: jika ada yang secara tidak sengaja memberikan nilai `0`, program akan langsung mengalami panic (crash mendadak) secara paksa. Dalam konvensi Rust, fungsi `new` umumnya diekspektasikan untuk tidak pernah gagal.
+
+2. **Pendekatan Fungsi `build` (Result):**
+   Fungsi `build` memperbaiki masalah tersebut dengan tidak memanggil panic, melainkan mengembalikan tipe `Result<ThreadPool, &'static str>`. 
+   - Jika `size` valid (lebih dari 0), ia mengembalikan `Ok(ThreadPool)`.
+   - Jika `size` adalah 0, ia mengembalikan `Err("Pesan error")`.
+
+### Kesimpulan
+Penggunaan `build` jauh lebih aman dan idiomatic dalam Rust untuk inisialisasi yang bisa gagal. Dengan mengembalikan `Result`, kita memberikan kendali penuh kepada caller (dalam hal ini `main.rs`) untuk memutuskan bagaimana cara menangani error tersebut dengan graceful error handling, misalnya dengan mencetak pesan error menggunakan `eprintln!` dan keluar dari proses menggunakan `process::exit(1)` tanpa membuat layar terminal penuh dengan stack trace panic yang membingungkan.
